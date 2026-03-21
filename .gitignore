@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+.env
+model/*.onnx
+model/*.pt
+dataset/
+.vscode/
+Thumbs.db
+desktop.ini
