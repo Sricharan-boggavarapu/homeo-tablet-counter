@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Live Detection — HomeoCount</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#08090c; --surface:#0f1117; --border:#1e2130;
+    --green:#00dc82; --red:#ff4757; --text:#e8eaf0; --muted:#6b7280; --amber:#f59e0b;
+  }
+  body { font-family:'Syne',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image:linear-gradient(rgba(0,220,130,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,220,130,.03) 1px,transparent 1px);
+    background-size:48px 48px; pointer-events:none; z-index:0;
+  }
+
+  /* ═══════════════ SPLASH ═══════════════ */
+  #splash {
+    position:fixed; inset:0; z-index:9999; background:#08090c;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.5rem;
+    transition:opacity .7s ease,visibility .7s ease;
+  }
+  #splash.hide { opacity:0; visibility:hidden; pointer-events:none; }
+  .splash-icon { font-size:3.5rem; animation:iconpop .7s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes iconpop { from{transform:scale(.3);opacity:0} to{transform:scale(1);opacity:1} }
+  .splash-title { font-size:2.2rem; font-weight:800; letter-spacing:-.03em; background:linear-gradient(135deg,var(--green),#00f0a0,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; animation:sup .5s .15s both; text-align:center; line-height:1.2; }
+  .splash-sub { font-family:'DM Mono',monospace; font-size:.76rem; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; animation:sup .5s .25s both; text-align:center; }
+  @keyframes sup { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+  .splash-bar-wrap { width:220px; height:3px; background:var(--border); border-radius:99px; overflow:hidden; animation:sup .5s .4s both; }
+  .splash-bar { height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,var(--green),#00f0a0); animation:loadbar 2s .4s cubic-bezier(.4,0,.2,1) forwards; }
+  @keyframes loadbar { from{width:0} to{width:100%} }
+  .splash-team { font-family:'DM Mono',monospace; font-size:.72rem; color:var(--muted); text-align:center; line-height:2.3; animation:sup .5s .55s both; }
+  .splash-team b { color:var(--green); font-weight:500; }
+
+  /* ═══════════════ NAV ═══════════════ */
+  nav { position:relative; z-index:10; display:flex; align-items:center; gap:1rem; padding:1rem 2rem; border-bottom:1px solid var(--border); }
+  .back-btn { font-family:'DM Mono',monospace; font-size:.8rem; color:var(--muted); text-decoration:none; border:1px solid var(--border); padding:.3rem .8rem; border-radius:8px; transition:color .2s,border-color .2s; }
+  .back-btn:hover { color:var(--green); border-color:var(--green); }
+  .nav-title { font-weight:700; font-size:1rem; }
+  .nav-sub { font-family:'DM Mono',monospace; font-size:.7rem; color:var(--muted); margin-left:auto; }
+
+  /* ═══════════════ LAYOUT ═══════════════ */
+  .layout { position:relative; z-index:2; flex:1; display:flex; gap:1.5rem; padding:1.5rem 2rem; }
+
+  /* Video */
+  .video-panel { flex:1; display:flex; flex-direction:column; gap:1rem; }
+  .video-wrapper { position:relative; border-radius:16px; overflow:hidden; border:1px solid var(--border); background:#000; aspect-ratio:4/3; }
+  #stream { width:100%; height:100%; object-fit:contain; display:block; }
+  .stream-overlay { position:absolute; top:1rem; right:1rem; display:flex; gap:.5rem; }
+  .badge { font-family:'DM Mono',monospace; font-size:.7rem; padding:.3rem .7rem; border-radius:99px; letter-spacing:.06em; }
+  .badge-live { background:rgba(255,71,87,.15); border:1px solid rgba(255,71,87,.35); color:var(--red); }
+  .badge-live::before { content:'●'; margin-right:.35rem; animation:liveblink 1.2s ease-in-out infinite; display:inline-block; }
+  @keyframes liveblink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .badge-off { background:rgba(107,114,128,.12); border:1px solid rgba(107,114,128,.3); color:var(--muted); }
+  .placeholder { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.75rem; color:var(--muted); font-family:'DM Mono',monospace; font-size:.85rem; }
+  .placeholder .icon { font-size:3rem; opacity:.3; }
+  .placeholder .hint { font-size:.75rem; color:var(--muted); opacity:.6; }
+
+  /* Controls */
+  .controls { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
+  select { font-family:'DM Mono',monospace; font-size:.8rem; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:.5rem .9rem; cursor:pointer; outline:none; }
+  .btn { font-family:'DM Mono',monospace; font-size:.82rem; padding:.55rem 1.4rem; border-radius:10px; border:none; cursor:pointer; font-weight:500; }
+  .btn-start { background:var(--green); color:#000; }
+  .btn-start:hover { background:#00f090; }
+  .btn-stop { background:rgba(255,71,87,.15); border:1px solid rgba(255,71,87,.3); color:var(--red); }
+  .btn-stop:hover { background:rgba(255,71,87,.25); }
+
+  /* ═══════════════ SIDEBAR ═══════════════ */
+  .sidebar { width:270px; display:flex; flex-direction:column; gap:1rem; }
+  .info-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.4rem; }
+  .info-card h3 { font-size:.68rem; font-family:'DM Mono',monospace; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; }
+
+  .pill-count-display { text-align:center; padding:.8rem 0; }
+  .count-number { font-size:5rem; font-weight:800; line-height:1; color:var(--green); text-shadow:0 0 40px rgba(0,220,130,.4); transition:all .15s; }
+  .count-label { font-family:'DM Mono',monospace; font-size:.72rem; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-top:.4rem; }
+
+  .conf-display { text-align:center; padding:.6rem 0; }
+  .conf-number { font-size:3rem; font-weight:800; line-height:1; color:var(--amber); text-shadow:0 0 30px rgba(245,158,11,.35); transition:all .2s; }
+  .conf-bar-wrap { width:100%; height:6px; background:var(--border); border-radius:99px; overflow:hidden; margin:.6rem 0 .3rem; }
+  .conf-bar { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--amber),#fbbf24); transition:width .4s ease; }
+
+  .info-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.82rem; }
+  .info-row:last-child { border-bottom:none; }
+  .info-row .lbl { color:var(--muted); font-size:.78rem; }
+  .info-row .val { font-family:'DM Mono',monospace; font-size:.78rem; color:var(--green); }
+  .status-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); display:inline-block; margin-right:.5rem; }
+  .status-dot.active { background:var(--green); box-shadow:0 0 8px var(--green); }
+  .tip-text { font-size:.76rem; color:var(--muted); line-height:1.75; font-family:'DM Mono',monospace; }
+
+  /* ═══════════════ FOOTER ═══════════════ */
+  footer { position:relative; z-index:2; border-top:1px solid var(--border); background:rgba(15,17,23,.97); padding:1.4rem 2.5rem; }
+  .footer-inner { max-width:900px; margin:0 auto; display:flex; flex-direction:column; align-items:center; gap:.9rem; }
+  .footer-label { font-family:'DM Mono',monospace; font-size:.66rem; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
+  .footer-team { display:flex; flex-wrap:wrap; justify-content:center; gap:.5rem; }
+  .chip { font-family:'DM Mono',monospace; font-size:.72rem; padding:.32rem .9rem; border-radius:99px; background:rgba(0,220,130,.07); border:1px solid rgba(0,220,130,.2); color:var(--green); }
+  .footer-copy { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--muted); text-align:center; }
+  .footer-copy em { color:var(--green); font-style:normal; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SPLASH ═══════════════ -->
+<div id="splash">
+  <div class="splash-icon">📷</div>
+  <div class="splash-title">Live Tablet<br/>Detection</div>
+  <div class="splash-sub">Real-time Camera · Homeopathy Tablet Counter</div>
+  <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
+  <div class="splash-team">
+    Done by<br/>
+    <b>Boggavarapu Sricharan</b> · <b>Margham Ganesh</b><br/>
+    <b>Chitturi Dhananjaya Kumar</b> · <b>Velpula Sri V B S Venkatesh Yadav</b>
+  </div>
+</div>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav>
+  <a class="back-btn" href="/">← Back</a>
+  <span class="nav-title">Live Camera — Tablet Detection</span>
+  <span class="nav-sub">AI-Based Homeopathy Tablet Counting System</span>
+</nav>
+
+<div class="layout">
+
+  <!-- Video Feed -->
+  <div class="video-panel">
+    <div class="video-wrapper">
+      <div class="placeholder" id="placeholder">
+        <div class="icon">📷</div>
+        <div>Select a camera and press Start</div>
+        <div class="hint">Place homeopathy tablets in tray under camera</div>
+      </div>
+      <img id="stream" src="" alt="stream" style="display:none;"/>
+      <div class="stream-overlay">
+        <span class="badge badge-off" id="liveBadge">OFFLINE</span>
+      </div>
+    </div>
+    <div class="controls">
+      <select id="camSelect">
+        <option value="0">Camera 0 (Default)</option>
+        <option value="1">Camera 1</option>
+        <option value="2">Camera 2</option>
+      </select>
+      <button class="btn btn-start" onclick="startCamera()">▶ Start Camera</button>
+      <button class="btn btn-stop"  onclick="stopCamera()">■ Stop Camera</button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <div class="info-card">
+      <h3>Tablet Count</h3>
+      <div class="pill-count-display">
+        <div class="count-number" id="pillCount">—</div>
+        <div class="count-label">Homeopathy Tablets</div>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <h3>Avg Detection Confidence</h3>
+      <div class="conf-display">
+        <div class="conf-number" id="confNumber">—</div>
+        <div class="count-label">per frame</div>
+      </div>
+      <div class="conf-bar-wrap">
+        <div class="conf-bar" id="confBar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <h3>Camera Status</h3>
+      <div class="info-row">
+        <span class="lbl"><span class="status-dot" id="statusDot"></span>Status</span>
+        <span class="val" id="statusText">Offline</span>
+      </div>
+      <div class="info-row"><span class="lbl">Camera Index</span><span class="val" id="camIdx">—</span></div>
+      <div class="info-row"><span class="lbl">Resolution</span><span class="val">640×480</span></div>
+      <div class="info-row"><span class="lbl">Target FPS</span><span class="val">15</span></div>
+    </div>
+
+    <div class="info-card">
+      <h3>Model Info</h3>
+      <div class="info-row"><span class="lbl">Model</span><span class="val">YOLOv8</span></div>
+      <div class="info-row"><span class="lbl">Runtime</span><span class="val">ONNX</span></div>
+      <div class="info-row"><span class="lbl">Input Size</span><span class="val">640×640</span></div>
+      <div class="info-row"><span class="lbl">Device</span><span class="val">CPU</span></div>
+      <div class="info-row"><span class="lbl">Conf Threshold</span><span class="val">0.35</span></div>
+      <div class="info-row"><span class="lbl">Expected Acc.</span><span class="val">90–95%</span></div>
+    </div>
+
+    <div class="info-card">
+      <h3>Usage Tips</h3>
+      <p class="tip-text">
+        • Place tablets flat in a tray or box<br/>
+        • Use top-view camera angle<br/>
+        • Ensure good, even lighting<br/>
+        • Avoid heavy tablet overlap<br/>
+        • Keep camera stable &amp; focused
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-label">✦ Done by</div>
+    <div class="footer-team">
+      <span class="chip">Boggavarapu Sricharan</span>
+      <span class="chip">Margham Ganesh</span>
+      <span class="chip">Chitturi Dhananjaya Kumar</span>
+      <span class="chip">Velpula Sri V B S Venkatesh Yadav</span>
+    </div>
+    <div class="footer-copy">AI-Based Homeopathy Tablet Counting System &nbsp;|&nbsp; Powered by <em>YOLOv8 ONNX</em> &nbsp;|&nbsp; © 2026</div>
+  </div>
+</footer>
+
+<script>
+  let streaming = false;
+
+  async function startCamera() {
+    const idx = parseInt(document.getElementById('camSelect').value);
+    const res  = await fetch('/start_camera', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({index: idx})
+    });
+    const data = await res.json();
+    if (data.success) {
+      const stream = document.getElementById('stream');
+      stream.src = '/video_feed?' + Date.now();
+      stream.style.display = 'block';
+      document.getElementById('placeholder').style.display = 'none';
+      document.getElementById('liveBadge').textContent = 'LIVE';
+      document.getElementById('liveBadge').className   = 'badge badge-live';
+      document.getElementById('statusDot').className   = 'status-dot active';
+      document.getElementById('statusText').textContent = 'Online';
+      document.getElementById('camIdx').textContent    = idx;
+      streaming = true;
+      pollStats();
+    } else {
+      alert('Could not open camera ' + idx + '. Try a different index.');
+    }
+  }
+
+  async function stopCamera() {
+    streaming = false;
+    await fetch('/stop_camera', {method:'POST'});
+    const stream = document.getElementById('stream');
+    stream.src = ''; stream.style.display = 'none';
+    document.getElementById('placeholder').style.display = 'flex';
+    document.getElementById('liveBadge').textContent = 'OFFLINE';
+    document.getElementById('liveBadge').className   = 'badge badge-off';
+    document.getElementById('statusDot').className   = 'status-dot';
+    document.getElementById('statusText').textContent = 'Offline';
+    document.getElementById('pillCount').textContent  = '—';
+    document.getElementById('confNumber').textContent = '—';
+    document.getElementById('confBar').style.width = '0%';
+  }
+
+  async function pollStats() {
+    if (!streaming) return;
+    try {
+      const r = await fetch('/video_feed_snap');
+      if (r.ok) {
+        const d = await r.json();
+        document.getElementById('pillCount').textContent = d.count;
+        if (d.avg_conf !== null && d.avg_conf !== undefined) {
+          document.getElementById('confNumber').textContent = (d.avg_conf * 100).toFixed(1) + '%';
+          document.getElementById('confBar').style.width = (d.avg_conf * 100) + '%';
+        } else {
+          document.getElementById('confNumber').textContent = '—';
+          document.getElementById('confBar').style.width = '0%';
+        }
+      }
+    } catch(e) {}
+    setTimeout(pollStats, 800);
+  }
+
+  setTimeout(() => document.getElementById('splash').classList.add('hide'), 2200);
+  window.addEventListener('beforeunload', () => {
+    if (streaming) fetch('/stop_camera', {method:'POST', keepalive:true});
+  });
+</script>
+</body>
+</html>

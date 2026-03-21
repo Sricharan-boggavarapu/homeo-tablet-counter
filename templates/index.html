@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HomeoCount — AI Homeopathy Tablet Counter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#08090c; --surface:#0f1117; --border:#1e2130;
+    --green:#00dc82; --text:#e8eaf0; --muted:#6b7280; --accent:#7c3aed;
+  }
+  body {
+    font-family:'Syne',sans-serif; background:var(--bg); color:var(--text);
+    min-height:100vh; display:flex; flex-direction:column; overflow-x:hidden;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image:linear-gradient(rgba(0,220,130,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,220,130,.04) 1px,transparent 1px);
+    background-size:48px 48px; pointer-events:none; z-index:0;
+  }
+  body::after {
+    content:''; position:fixed; top:-200px; left:50%; transform:translateX(-50%);
+    width:800px; height:600px;
+    background:radial-gradient(ellipse at center,rgba(0,220,130,.12) 0%,transparent 70%);
+    pointer-events:none; z-index:0; animation:pulse 6s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:.6;transform:translateX(-50%) scale(1)} 50%{opacity:1;transform:translateX(-50%) scale(1.1)} }
+
+  /* ═══════════════ SPLASH ═══════════════ */
+  #splash {
+    position:fixed; inset:0; z-index:9999;
+    background:#08090c;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.8rem;
+    transition:opacity .7s ease, visibility .7s ease;
+  }
+  #splash.hide { opacity:0; visibility:hidden; pointer-events:none; }
+
+  .splash-icon {
+    width:100px; height:100px; border-radius:28px;
+    background:rgba(0,220,130,.1); border:2px solid rgba(0,220,130,.3);
+    display:flex; align-items:center; justify-content:center; font-size:3.5rem;
+    box-shadow:0 0 60px rgba(0,220,130,.2);
+    animation:iconpop .7s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  @keyframes iconpop { from{transform:scale(.3);opacity:0} to{transform:scale(1);opacity:1} }
+
+  .splash-title {
+    font-size:2.8rem; font-weight:800; letter-spacing:-.04em;
+    background:linear-gradient(135deg,var(--green) 0%,#00f0a0 50%,var(--accent) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    animation:sup .5s .15s both; text-align:center; line-height:1.15;
+  }
+  .splash-sub {
+    font-family:'DM Mono',monospace; font-size:.78rem; color:var(--muted);
+    letter-spacing:.12em; text-transform:uppercase; animation:sup .5s .25s both; text-align:center;
+  }
+  @keyframes sup { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+
+  .splash-bar-wrap {
+    width:240px; height:3px; background:var(--border);
+    border-radius:99px; overflow:hidden; animation:sup .5s .4s both;
+  }
+  .splash-bar {
+    height:100%; width:0; border-radius:99px;
+    background:linear-gradient(90deg,var(--green),#00f0a0);
+    animation:loadbar 2s .4s cubic-bezier(.4,0,.2,1) forwards;
+  }
+  @keyframes loadbar { from{width:0} to{width:100%} }
+
+  .splash-team {
+    font-family:'DM Mono',monospace; font-size:.74rem;
+    color:var(--muted); text-align:center; line-height:2.3;
+    animation:sup .5s .55s both;
+  }
+  .splash-team b { color:var(--green); font-weight:500; }
+  .splash-sep { color:#2a2d3a; margin:0 .4rem; }
+
+  /* ═══════════════ NAV ═══════════════ */
+  nav {
+    position:relative; z-index:10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:1.2rem 2.5rem; border-bottom:1px solid var(--border);
+  }
+  .logo {
+    display:flex; align-items:center; gap:.6rem;
+    font-size:1.15rem; font-weight:800; letter-spacing:-.02em;
+    color:var(--text); text-decoration:none;
+  }
+  .logo-dot {
+    width:10px; height:10px; border-radius:50%;
+    background:var(--green); box-shadow:0 0 12px var(--green);
+    animation:blink 2s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1;box-shadow:0 0 12px var(--green)} 50%{opacity:.4;box-shadow:0 0 4px var(--green)} }
+  .nav-badge {
+    font-family:'DM Mono',monospace; font-size:.68rem; color:var(--green);
+    border:1px solid rgba(0,220,130,.3); padding:.22rem .65rem; border-radius:99px;
+  }
+
+  /* ═══════════════ MAIN ═══════════════ */
+  main {
+    flex:1; position:relative; z-index:2;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:3.5rem 1.5rem; text-align:center;
+  }
+  .tag {
+    font-family:'DM Mono',monospace; font-size:.72rem; letter-spacing:.15em;
+    color:var(--green); text-transform:uppercase;
+    border:1px solid rgba(0,220,130,.25); padding:.28rem .9rem;
+    border-radius:99px; margin-bottom:1.5rem; display:inline-block;
+    background:rgba(0,220,130,.06);
+  }
+  h1 {
+    font-size:clamp(2rem,5.5vw,4.5rem); font-weight:800;
+    line-height:1.1; letter-spacing:-.03em; margin-bottom:1.2rem;
+  }
+  h1 span { background:linear-gradient(135deg,var(--green) 0%,#00f0a0 50%,var(--accent) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .subtitle { font-size:1rem; color:var(--muted); max-width:580px; line-height:1.75; margin-bottom:1rem; }
+  .subtitle2 { font-size:.85rem; color:var(--muted); max-width:560px; line-height:1.7; margin-bottom:3rem; font-family:'DM Mono',monospace; }
+
+  /* ═══════════════ CARDS ═══════════════ */
+  .cards { display:flex; gap:1.5rem; flex-wrap:wrap; justify-content:center; }
+  .card {
+    background:var(--surface); border:1px solid var(--border); border-radius:20px;
+    padding:2.2rem 1.8rem; width:280px; text-decoration:none; color:inherit;
+    display:flex; flex-direction:column; align-items:center; gap:1rem;
+    position:relative; overflow:hidden;
+    transition:border-color .25s,transform .25s,box-shadow .25s;
+  }
+  .card::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 0%,rgba(0,220,130,.08) 0%,transparent 65%); opacity:0; transition:opacity .3s; }
+  .card:hover { border-color:var(--green); transform:translateY(-6px); box-shadow:0 20px 60px rgba(0,220,130,.15); }
+  .card:hover::before { opacity:1; }
+  .card-icon { width:64px; height:64px; border-radius:16px; background:rgba(0,220,130,.1); border:1px solid rgba(0,220,130,.2); display:flex; align-items:center; justify-content:center; font-size:1.8rem; }
+  .card h2 { font-size:1.15rem; font-weight:700; }
+  .card p { font-size:.85rem; color:var(--muted); text-align:center; line-height:1.65; }
+  .card-btn { margin-top:.5rem; font-family:'DM Mono',monospace; font-size:.76rem; padding:.5rem 1.4rem; border-radius:8px; background:rgba(0,220,130,.12); border:1px solid rgba(0,220,130,.3); color:var(--green); }
+
+  /* ═══════════════ STATS ═══════════════ */
+  .stats { display:flex; gap:2rem; flex-wrap:wrap; justify-content:center; margin-top:3.5rem; font-family:'DM Mono',monospace; }
+  .stat { text-align:center; }
+  .stat-val { font-size:1.5rem; font-weight:700; color:var(--green); }
+  .stat-lbl { font-size:.68rem; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-top:.2rem; }
+
+  /* ═══════════════ ABOUT STRIP ═══════════════ */
+  .about-strip {
+    position:relative; z-index:2;
+    background:rgba(15,17,23,.7); border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+    padding:2rem 2.5rem;
+  }
+  .about-inner { max-width:860px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.5rem; }
+  .about-item { display:flex; flex-direction:column; gap:.4rem; }
+  .about-label { font-family:'DM Mono',monospace; font-size:.65rem; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .about-val { font-size:.88rem; font-weight:600; color:var(--text); line-height:1.5; }
+
+  /* ═══════════════ FOOTER ═══════════════ */
+  footer {
+    position:relative; z-index:2;
+    border-top:1px solid var(--border);
+    background:rgba(15,17,23,.97);
+    padding:2rem 2.5rem 1.6rem;
+  }
+  .footer-inner { max-width:860px; margin:0 auto; display:flex; flex-direction:column; align-items:center; gap:1.2rem; }
+  .footer-label { font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
+  .footer-team { display:flex; flex-wrap:wrap; justify-content:center; gap:.6rem; }
+  .chip {
+    font-family:'DM Mono',monospace; font-size:.76rem;
+    padding:.38rem 1rem; border-radius:99px;
+    background:rgba(0,220,130,.07); border:1px solid rgba(0,220,130,.2);
+    color:var(--green); transition:background .2s,border-color .2s;
+  }
+  .chip:hover { background:rgba(0,220,130,.16); border-color:var(--green); }
+  .footer-hr { width:100%; height:1px; background:var(--border); }
+  .footer-copy { font-family:'DM Mono',monospace; font-size:.7rem; color:var(--muted); text-align:center; line-height:1.9; }
+  .footer-copy em { color:var(--green); font-style:normal; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SPLASH ═══════════════ -->
+<div id="splash">
+  <div class="splash-icon">💊</div>
+  <div class="splash-title">AI-Based Homeopathy<br/>Tablet Counting System</div>
+  <div class="splash-sub">Computer Vision · YOLOv8 · ONNX Runtime</div>
+  <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
+  <div class="splash-team">
+    Done by<br/>
+    <b>Boggavarapu Sricharan</b><span class="splash-sep">·</span><b>Margham Ganesh</b><br/>
+    <b>Chitturi Dhananjaya Kumar</b><span class="splash-sep">·</span><b>Velpula Sri V B S Venkatesh Yadav</b>
+  </div>
+</div>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav>
+  <a class="logo" href="/"><div class="logo-dot"></div>HomeoCount · AI Tablet Counter</a>
+  <span class="nav-badge">YOLOv8 · ONNX · CPU</span>
+</nav>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<main>
+  <span class="tag">⚕ AI-Based Homeopathy Tablet Counting System</span>
+  <h1>Detect &amp; count tablets<br/>with <span>computer vision</span></h1>
+  <p class="subtitle">
+    An AI-powered system that detects and counts homeopathy tablets automatically —
+    eliminating manual counting errors and ensuring accurate dosage for every patient.
+  </p>
+  <p class="subtitle2">
+    Supports real-time camera input and image upload · Designed for homeopathy clinics &amp; pharmacies
+  </p>
+
+  <div class="cards">
+    <a class="card" href="/live">
+      <div class="card-icon">📷</div>
+      <h2>Live Camera Detection</h2>
+      <p>Stream from a webcam or external camera. Detects and counts tablets in real time with bounding boxes.</p>
+      <span class="card-btn">→ Open Live Feed</span>
+    </a>
+    <a class="card" href="/upload">
+      <div class="card-icon">🖼️</div>
+      <h2>Image Upload</h2>
+      <p>Upload a tray or box image. The AI model detects each tablet and gives you an exact count instantly.</p>
+      <span class="card-btn">→ Upload Image</span>
+    </a>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-val">YOLOv8</div><div class="stat-lbl">Detection Model</div></div>
+    <div class="stat"><div class="stat-val">ONNX</div><div class="stat-lbl">Runtime</div></div>
+    <div class="stat"><div class="stat-val">90–95%</div><div class="stat-lbl">Expected Accuracy</div></div>
+    <div class="stat"><div class="stat-val">CPU</div><div class="stat-lbl">Optimized</div></div>
+    <div class="stat"><div class="stat-val">15 FPS</div><div class="stat-lbl">Live Stream</div></div>
+  </div>
+</main>
+
+<!-- ═══════════════ ABOUT STRIP ═══════════════ -->
+<div class="about-strip">
+  <div class="about-inner">
+    <div class="about-item">
+      <span class="about-label">Project Title</span>
+      <span class="about-val">AI-Based Homeopathy Tablet Counting System Using Computer Vision</span>
+    </div>
+    <div class="about-item">
+      <span class="about-label">Application Domain</span>
+      <span class="about-val">Homeopathy Clinics · Medical Dispensaries · Pharmacy Inventory</span>
+    </div>
+    <div class="about-item">
+      <span class="about-label">Methodology</span>
+      <span class="about-val">Image Acquisition → Preprocessing → YOLOv8 Detection → Counting → UI Display</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-label">✦ Done by</div>
+    <div class="footer-team">
+      <span class="chip">Boggavarapu Sricharan</span>
+      <span class="chip">Margham Ganesh</span>
+      <span class="chip">Chitturi Dhananjaya Kumar</span>
+      <span class="chip">Velpula Sri V B S Venkatesh Yadav</span>
+    </div>
+    <div class="footer-hr"></div>
+    <div class="footer-copy">
+      AI-Based Homeopathy Tablet Counting System &nbsp;|&nbsp; Powered by <em>YOLOv8 ONNX</em> &nbsp;|&nbsp; Built with <em>Flask + OpenCV</em><br/>
+      © 2026 · All Rights Reserved
+    </div>
+  </div>
+</footer>
+
+<script>
+  setTimeout(() => document.getElementById('splash').classList.add('hide'), 2600);
+</script>
+</body>
+</html>

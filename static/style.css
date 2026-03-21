@@ -1,0 +1,7 @@
+/* static/style.css — shared base (templates import Google Fonts inline) */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #08090c; --surface: #0f1117; --border: #1e2130;
+  --green: #00dc82; --text: #e8eaf0; --muted: #6b7280;
+}
+body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); }

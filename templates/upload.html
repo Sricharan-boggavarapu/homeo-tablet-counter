@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Image Upload — HomeoCount</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#08090c; --surface:#0f1117; --border:#1e2130;
+    --green:#00dc82; --text:#e8eaf0; --muted:#6b7280; --amber:#f59e0b;
+  }
+  body { font-family:'Syne',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image:linear-gradient(rgba(0,220,130,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,220,130,.03) 1px,transparent 1px);
+    background-size:48px 48px; pointer-events:none; z-index:0;
+  }
+
+  /* ═══════════════ SPLASH ═══════════════ */
+  #splash {
+    position:fixed; inset:0; z-index:9999; background:#08090c;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.5rem;
+    transition:opacity .7s ease,visibility .7s ease;
+  }
+  #splash.hide { opacity:0; visibility:hidden; pointer-events:none; }
+  .splash-icon { font-size:3.5rem; animation:iconpop .7s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes iconpop { from{transform:scale(.3);opacity:0} to{transform:scale(1);opacity:1} }
+  .splash-title { font-size:2.2rem; font-weight:800; letter-spacing:-.03em; background:linear-gradient(135deg,var(--green),#00f0a0,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; animation:sup .5s .15s both; text-align:center; line-height:1.2; }
+  .splash-sub { font-family:'DM Mono',monospace; font-size:.76rem; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; animation:sup .5s .25s both; text-align:center; }
+  @keyframes sup { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+  .splash-bar-wrap { width:220px; height:3px; background:var(--border); border-radius:99px; overflow:hidden; animation:sup .5s .4s both; }
+  .splash-bar { height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,var(--green),#00f0a0); animation:loadbar 2s .4s cubic-bezier(.4,0,.2,1) forwards; }
+  @keyframes loadbar { from{width:0} to{width:100%} }
+  .splash-team { font-family:'DM Mono',monospace; font-size:.72rem; color:var(--muted); text-align:center; line-height:2.3; animation:sup .5s .55s both; }
+  .splash-team b { color:var(--green); font-weight:500; }
+
+  /* ═══════════════ NAV ═══════════════ */
+  nav { position:relative; z-index:10; display:flex; align-items:center; gap:1rem; padding:1rem 2rem; border-bottom:1px solid var(--border); }
+  .back-btn { font-family:'DM Mono',monospace; font-size:.8rem; color:var(--muted); text-decoration:none; border:1px solid var(--border); padding:.3rem .8rem; border-radius:8px; transition:color .2s,border-color .2s; }
+  .back-btn:hover { color:var(--green); border-color:var(--green); }
+  .nav-title { font-weight:700; font-size:1rem; }
+  .nav-sub { font-family:'DM Mono',monospace; font-size:.7rem; color:var(--muted); margin-left:auto; }
+
+  /* ═══════════════ MAIN ═══════════════ */
+  main { position:relative; z-index:2; flex:1; padding:2rem; display:flex; flex-direction:column; gap:2rem; }
+
+  .drop-zone {
+    border:2px dashed var(--border); border-radius:20px; padding:3rem;
+    text-align:center; cursor:pointer; transition:all .25s; background:var(--surface);
+    display:flex; flex-direction:column; align-items:center; gap:1rem;
+  }
+  .drop-zone:hover,.drop-zone.dragover { border-color:var(--green); background:rgba(0,220,130,.04); }
+  .drop-icon { font-size:2.8rem; }
+  .drop-title { font-size:1.1rem; font-weight:700; }
+  .drop-sub { font-family:'DM Mono',monospace; font-size:.8rem; color:var(--muted); }
+  .drop-hint { font-family:'DM Mono',monospace; font-size:.74rem; color:var(--muted); opacity:.7; }
+  .upload-btn { font-family:'DM Mono',monospace; font-size:.82rem; padding:.6rem 1.6rem; border-radius:10px; background:var(--green); color:#000; border:none; cursor:pointer; font-weight:600; }
+  .upload-btn:hover { background:#00f090; }
+  #fileInput { display:none; }
+
+  .results-grid { display:none; grid-template-columns:1fr 300px; gap:1.5rem; }
+  .results-grid.visible { display:grid; }
+  .images-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  .img-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+  .img-card-header { padding:.7rem 1rem; border-bottom:1px solid var(--border); font-family:'DM Mono',monospace; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .img-card img { width:100%; display:block; object-fit:contain; max-height:360px; background:#000; }
+
+  .stats-sidebar { display:flex; flex-direction:column; gap:1rem; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.4rem; }
+  .stat-card h3 { font-size:.68rem; font-family:'DM Mono',monospace; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; }
+
+  .big-count { font-size:4.5rem; font-weight:800; line-height:1; color:var(--green); text-shadow:0 0 40px rgba(0,220,130,.4); text-align:center; padding:.5rem 0; }
+  .count-label { font-family:'DM Mono',monospace; font-size:.72rem; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; text-align:center; }
+
+  .avg-conf-val { font-size:3.2rem; font-weight:800; line-height:1; color:var(--amber); text-shadow:0 0 30px rgba(245,158,11,.35); text-align:center; padding:.5rem 0; }
+  .conf-bar-wrap { width:100%; height:6px; background:var(--border); border-radius:99px; overflow:hidden; margin:.5rem 0 .3rem; }
+  .conf-bar { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--amber),#fbbf24); transition:width .5s ease; }
+
+  .det-list { display:flex; flex-direction:column; gap:.5rem; max-height:220px; overflow-y:auto; }
+  .det-item { display:flex; justify-content:space-between; align-items:center; padding:.45rem .7rem; border-radius:8px; background:rgba(0,220,130,.06); border:1px solid rgba(0,220,130,.12); font-family:'DM Mono',monospace; font-size:.75rem; }
+  .det-item .pill-lbl { color:var(--green); }
+  .det-item .conf { color:var(--muted); }
+
+  .spinner-wrap { display:none; align-items:center; justify-content:center; gap:1rem; padding:2rem; font-family:'DM Mono',monospace; font-size:.9rem; color:var(--muted); }
+  .spinner-wrap.visible { display:flex; }
+  .spinner { width:28px; height:28px; border-radius:50%; border:3px solid var(--border); border-top-color:var(--green); animation:spin .7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  .reset-btn { font-family:'DM Mono',monospace; font-size:.78rem; padding:.5rem 1.2rem; border-radius:8px; background:transparent; color:var(--muted); border:1px solid var(--border); cursor:pointer; transition:all .2s; width:100%; }
+  .reset-btn:hover { border-color:var(--green); color:var(--green); }
+
+  /* ═══════════════ FOOTER ═══════════════ */
+  footer { position:relative; z-index:2; border-top:1px solid var(--border); background:rgba(15,17,23,.97); padding:1.4rem 2.5rem; }
+  .footer-inner { max-width:900px; margin:0 auto; display:flex; flex-direction:column; align-items:center; gap:.9rem; }
+  .footer-label { font-family:'DM Mono',monospace; font-size:.66rem; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
+  .footer-team { display:flex; flex-wrap:wrap; justify-content:center; gap:.5rem; }
+  .chip { font-family:'DM Mono',monospace; font-size:.72rem; padding:.32rem .9rem; border-radius:99px; background:rgba(0,220,130,.07); border:1px solid rgba(0,220,130,.2); color:var(--green); }
+  .footer-copy { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--muted); text-align:center; }
+  .footer-copy em { color:var(--green); font-style:normal; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SPLASH ═══════════════ -->
+<div id="splash">
+  <div class="splash-icon">🖼️</div>
+  <div class="splash-title">Upload &amp; Detect<br/>Tablets</div>
+  <div class="splash-sub">Image Analysis · Homeopathy Tablet Counter</div>
+  <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
+  <div class="splash-team">
+    Done by<br/>
+    <b>Boggavarapu Sricharan</b> · <b>Margham Ganesh</b><br/>
+    <b>Chitturi Dhananjaya Kumar</b> · <b>Velpula Sri V B S Venkatesh Yadav</b>
+  </div>
+</div>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav>
+  <a class="back-btn" href="/">← Back</a>
+  <span class="nav-title">Image Upload — Tablet Detection</span>
+  <span class="nav-sub">AI-Based Homeopathy Tablet Counting System</span>
+</nav>
+
+<main>
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="drop-icon">🖼️</div>
+    <div class="drop-title">Upload a tablet tray image</div>
+    <div class="drop-sub">PNG · JPG · JPEG · BMP · WEBP</div>
+    <div class="drop-hint">Top-view image of homeopathy tablets in a tray or box</div>
+    <button class="upload-btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Choose File</button>
+    <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this.files[0])"/>
+  </div>
+
+  <div class="spinner-wrap" id="spinner">
+    <div class="spinner"></div>
+    Detecting homeopathy tablets…
+  </div>
+
+  <div class="results-grid" id="results">
+    <div class="images-row">
+      <div class="img-card">
+        <div class="img-card-header">📁 Original Image</div>
+        <img id="originalImg" src="" alt="original"/>
+      </div>
+      <div class="img-card">
+        <div class="img-card-header">🎯 Detected Tablets</div>
+        <img id="resultImg" src="" alt="result"/>
+      </div>
+    </div>
+
+    <div class="stats-sidebar">
+      <div class="stat-card">
+        <h3>Total Tablet Count</h3>
+        <div class="big-count" id="bigCount">0</div>
+        <div class="count-label">Homeopathy Tablets</div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Avg Detection Confidence</h3>
+        <div class="avg-conf-val" id="avgConf">—</div>
+        <div class="count-label">across all detections</div>
+        <div class="conf-bar-wrap">
+          <div class="conf-bar" id="confBar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Per-Tablet Confidence</h3>
+        <div class="det-list" id="detList"></div>
+      </div>
+
+      <button class="reset-btn" onclick="reset()">↺ Upload Another Image</button>
+    </div>
+  </div>
+</main>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-label">✦ Done by</div>
+    <div class="footer-team">
+      <span class="chip">Boggavarapu Sricharan</span>
+      <span class="chip">Margham Ganesh</span>
+      <span class="chip">Chitturi Dhananjaya Kumar</span>
+      <span class="chip">Velpula Sri V B S Venkatesh Yadav</span>
+    </div>
+    <div class="footer-copy">AI-Based Homeopathy Tablet Counting System &nbsp;|&nbsp; Powered by <em>YOLOv8 ONNX</em> &nbsp;|&nbsp; © 2026</div>
+  </div>
+</footer>
+
+<script>
+  const dropZone = document.getElementById('dropZone');
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('dragover');
+    const f = e.dataTransfer.files[0]; if (f) handleFile(f);
+  });
+
+  function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => document.getElementById('originalImg').src = e.target.result;
+    reader.readAsDataURL(file);
+
+    dropZone.style.display = 'none';
+    document.getElementById('spinner').classList.add('visible');
+    document.getElementById('results').classList.remove('visible');
+
+    const fd = new FormData();
+    fd.append('image', file);
+
+    fetch('/detect', {method:'POST', body:fd})
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('spinner').classList.remove('visible');
+        if (data.error) { alert('Error: ' + data.error); reset(); return; }
+
+        document.getElementById('resultImg').src  = data.image;
+        document.getElementById('bigCount').textContent = data.count;
+
+        if (data.avg_conf !== null && data.avg_conf !== undefined && data.count > 0) {
+          const pct = (data.avg_conf * 100).toFixed(1);
+          document.getElementById('avgConf').textContent = pct + '%';
+          document.getElementById('confBar').style.width = pct + '%';
+        } else {
+          document.getElementById('avgConf').textContent = '—';
+          document.getElementById('confBar').style.width = '0%';
+        }
+
+        const list = document.getElementById('detList');
+        list.innerHTML = '';
+        if (data.detections.length === 0) {
+          list.innerHTML = '<div style="color:var(--muted);font-family:DM Mono,monospace;font-size:.8rem;text-align:center;padding:.5rem">No tablets detected</div>';
+        } else {
+          data.detections.forEach((d, i) => {
+            list.innerHTML += `<div class="det-item"><span class="pill-lbl">tablet #${i+1}</span><span class="conf">${Math.round(d.score*100)}%</span></div>`;
+          });
+        }
+        document.getElementById('results').classList.add('visible');
+      })
+      .catch(err => {
+        document.getElementById('spinner').classList.remove('visible');
+        alert('Detection failed: ' + err); reset();
+      });
+  }
+
+  function reset() {
+    document.getElementById('results').classList.remove('visible');
+    document.getElementById('fileInput').value = '';
+    dropZone.style.display = 'flex';
+  }
+
+  setTimeout(() => document.getElementById('splash').classList.add('hide'), 2200);
+</script>
+</body>
+</html>
