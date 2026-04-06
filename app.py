@@ -9,6 +9,11 @@ import os
 
 app = Flask(__name__)
 
+@app.before_first_request
+def ensure_model_loaded():
+    if session is None:
+        load_model()
+
 # ─── Model Config ──────────────────────────────────────────────────────────────
 MODEL_PATH  = os.path.join(os.path.dirname(__file__), "model", "best_100epochs.onnx")
 INPUT_SIZE  = 640
@@ -258,6 +263,7 @@ def detect():
 
 # ─── Main ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    load_model()
+    if session is None:
+        load_model()
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port, threaded=True)
