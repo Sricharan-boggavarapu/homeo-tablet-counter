@@ -57,9 +57,14 @@
   .drop-title { font-size:1.1rem; font-weight:700; }
   .drop-sub { font-family:'DM Mono',monospace; font-size:.8rem; color:var(--muted); }
   .drop-hint { font-family:'DM Mono',monospace; font-size:.74rem; color:var(--muted); opacity:.7; }
-  .upload-btn { font-family:'DM Mono',monospace; font-size:.82rem; padding:.6rem 1.6rem; border-radius:10px; background:var(--green); color:#000; border:none; cursor:pointer; font-weight:600; }
+  .btn-group { display:flex; gap:1rem; flex-wrap:wrap; justify-content:center; }
+  .upload-btn, .camera-btn { font-family:'DM Mono',monospace; font-size:.82rem; padding:.6rem 1.6rem; border-radius:10px; border:none; cursor:pointer; font-weight:600; transition:all .2s; }
+  .upload-btn { background:var(--green); color:#000; }
   .upload-btn:hover { background:#00f090; }
-  #fileInput { display:none; }
+  .camera-btn { background:var(--amber); color:#000; }
+  .camera-btn:hover { background:#fbbf24; }
+  .camera-btn:active { transform:scale(.98); }
+  #fileInput, #cameraInput { display:none; }
 
   .results-grid { display:none; grid-template-columns:1fr 300px; gap:1.5rem; }
   .results-grid.visible { display:grid; }
@@ -130,8 +135,12 @@
     <div class="drop-title">Upload a tablet tray image</div>
     <div class="drop-sub">PNG · JPG · JPEG · BMP · WEBP</div>
     <div class="drop-hint">Top-view image of homeopathy tablets in a tray or box</div>
-    <button class="upload-btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Choose File</button>
+    <div class="btn-group">
+      <button class="upload-btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">📁 Choose File</button>
+      <button class="camera-btn" onclick="event.stopPropagation();document.getElementById('cameraInput').click()">📷 Open Camera</button>
+    </div>
     <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this.files[0])"/>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleFile(this.files[0])"/>
   </div>
 
   <div class="spinner-wrap" id="spinner">
