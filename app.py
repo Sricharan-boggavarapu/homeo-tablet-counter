@@ -21,16 +21,22 @@ session = None
 
 def load_model():
     global session
-    opts = ort.SessionOptions()
-    opts.intra_op_num_threads = 2
-    opts.inter_op_num_threads = 2
-    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-    session = ort.InferenceSession(
-        MODEL_PATH,
-        sess_options=opts,
-        providers=["CPUExecutionProvider"]
-    )
-    print(f"[✓] Model loaded: {MODEL_PATH}")
+    try:
+        opts = ort.SessionOptions()
+        opts.intra_op_num_threads = 2
+        opts.inter_op_num_threads = 2
+        opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        session = ort.InferenceSession(
+            MODEL_PATH,
+            sess_options=opts,
+            providers=["CPUExecutionProvider"]
+        )
+        print(f"[✓] Model loaded: {MODEL_PATH}")
+    except Exception as e:
+        print(f"[✗] Failed to load model: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 # ─── Preprocessing ─────────────────────────────────────────────────────────────
 def preprocess(image):
@@ -219,26 +225,36 @@ def stop_camera():
 
 @app.route("/detect", methods=["POST"])
 def detect():
-    if "image" not in request.files:
-        return jsonify({"error": "No image provided"}), 400
+    try:
+        if "image" not in request.files:
+            return jsonify({"error": "No image provided"}), 400
 
-    file  = request.files["image"]
-    data  = np.frombuffer(file.read(), np.uint8)
-    image = cv2.imdecode(data, cv2.IMREAD_COLOR)
-    if image is None:
-        return jsonify({"error": "Invalid image"}), 400
+        file  = request.files["image"]
+        data  = np.frombuffer(file.read(), np.uint8)
+        image = cv2.imdecode(data, cv2.IMREAD_COLOR)
+        if image is None:
+            return jsonify({"error": "Invalid image"}), 400
 
-    detections = run_inference(image)
-    result_img = draw_detections(image.copy(), detections)
-    _, buf = cv2.imencode(".jpg", result_img, [cv2.IMWRITE_JPEG_QUALITY, 90])
-    b64    = base64.b64encode(buf).decode("utf-8")
+        print(f"[✓] Image loaded, shape: {image.shape}")
+        
+        detections = run_inference(image)
+        print(f"[✓] Detections: {len(detections)}")
+        
+        result_img = draw_detections(image.copy(), detections)
+        _, buf = cv2.imencode(".jpg", result_img, [cv2.IMWRITE_JPEG_QUALITY, 90])
+        b64    = base64.b64encode(buf).decode("utf-8")
 
-    return jsonify({
-        "count":      len(detections),
-        "avg_conf":   avg_confidence(detections),
-        "detections": detections,
-        "image":      f"data:image/jpeg;base64,{b64}"
-    })
+        return jsonify({
+            "count":      len(detections),
+            "avg_conf":   avg_confidence(detections),
+            "detections": detections,
+            "image":      f"data:image/jpeg;base64,{b64}"
+        })
+    except Exception as e:
+        print(f"[✗] Error in /detect: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Detection error: {str(e)}"}), 500
 
 # ─── Main ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
