@@ -10,7 +10,7 @@ import os
 app = Flask(__name__)
 
 # ─── Model Config ──────────────────────────────────────────────────────────────
-MODEL_PATH  = os.path.join(os.path.dirname(__file__), "model", "best.onnx")
+MODEL_PATH  = os.path.join(os.path.dirname(__file__), "model", "best_100epochs.onnx")
 INPUT_SIZE  = 640
 CONF_THRESH = 0.35
 IOU_THRESH  = 0.45
