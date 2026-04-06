@@ -4,8 +4,8 @@ __pycache__/
 venv/
 env/
 .env
-model/*.onnx
-model/*.pt
+# model/*.onnx
+# model/*.pt
 dataset/
 .vscode/
 Thumbs.db
